@@ -6,12 +6,12 @@
   <title>DeckCraft — Prezentacje</title>
   
 <script type="module">
-import init, * as bindings from './deckcraft-web-f1d246563b9baaf3.js';
-const wasm = await init({ module_or_path: './deckcraft-web-f1d246563b9baaf3_bg.wasm' });
+import init, * as bindings from './deckcraft-web-9cc2834dfd28cf0.js';
+const wasm = await init({ module_or_path: './deckcraft-web-9cc2834dfd28cf0_bg.wasm' });
 
 
 window.wasmBindings = bindings;
-
+window.deckcraft_command = bindings.deckcraft_command;
 
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
@@ -23,9 +23,54 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
     #deckcraft_loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
       color: #b8b8b8; font: 14px system-ui, sans-serif; pointer-events: none; }
   </style>
-<link rel="modulepreload" href="./deckcraft-web-f1d246563b9baaf3.js" crossorigin="anonymous" integrity="sha384-Y/fCmsZWfioI89jqAFZYVxycgCVRoGQ4qMR6enfw++vgG5tQ75bXtJIFmtbdE0oG"><link rel="preload" href="./deckcraft-web-f1d246563b9baaf3_bg.wasm" crossorigin="anonymous" integrity="sha384-82dKHq45BYV+Qd4DmF0f8Nzidap4VZQCBVSF0TIZvRFf4wf62DJiZJsx2npFNvg6" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./deckcraft-web-9cc2834dfd28cf0.js" crossorigin="anonymous" integrity="sha384-VPdfpiEHtYTFOD5RauZeJrLx2lB+6o/zcRqL8RFYaiI4C75X1JGXMqUo/3Ahata1"><link rel="preload" href="./deckcraft-web-9cc2834dfd28cf0_bg.wasm" crossorigin="anonymous" integrity="sha384-aGJmTQtBL3/UC9INzVhJxERaidYUqRiQut5W6b2p/TFIAQ0Nh34p9JoLJ4QtsJ5e" as="fetch" type="application/wasm"></head>
 <body>
   <canvas id="deckcraft_canvas"></canvas>
   <div id="deckcraft_loading">Ładowanie DeckCraft&hellip;</div>
+  <script>
+    function setDeckTheme(targetTheme) {
+      const isLight = targetTheme === "light";
+      const fn = window.deckcraft_command || (window.wasmBindings && window.wasmBindings.deckcraft_command);
+      if (typeof fn === "function") {
+        try {
+          fn("view.dark", JSON.stringify({ on: !isLight }));
+        } catch (err) {
+          console.warn("[DeckCraft] Błąd zmiany motywu:", err);
+        }
+      } else {
+        window.__pending_theme = targetTheme;
+      }
+    }
+
+    window.addEventListener("message", (event) => {
+      if (!event.data) return;
+      const theme = event.data.theme || (event.data.type === "set_theme" ? event.data.value : null);
+      if (theme === "light" || theme === "dark") {
+        setDeckTheme(theme);
+      }
+    });
+
+    if (new URLSearchParams(window.location.search).get("theme") === "light") {
+      try {
+        document.documentElement.style.colorScheme = "light";
+        document.body.style.background = "#f5f5f5";
+        const loading = document.getElementById("deckcraft_loading");
+        if (loading) {
+          loading.style.color = "#444";
+        }
+      } catch (_) {}
+    }
+
+    window.addEventListener("TrunkApplicationStarted", () => {
+      if (window.wasmBindings && window.wasmBindings.deckcraft_command) {
+        window.deckcraft_command = window.wasmBindings.deckcraft_command;
+      }
+      const params = new URLSearchParams(window.location.search);
+      const initial = window.__pending_theme || (params.get("theme") === "light" ? "light" : null);
+      if (initial) {
+        setDeckTheme(initial);
+      }
+    });
+  </script>
 </body>
 </html>
